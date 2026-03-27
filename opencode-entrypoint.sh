@@ -8,5 +8,5 @@ if [[ "${1:-}" == "--bash" ]]; then
 fi
 
 # Default: OpenCode mode (no Ctrl-Z)
-trap '' SIGTSTP SIGTTIN SIGTTOU
+#trap '' SIGTSTP SIGTTIN SIGTTOU
 exec opencode "$@"

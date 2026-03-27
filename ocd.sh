@@ -1,13 +1,32 @@
 #!/usr/bin/env bash
-set -euo pipefail
 
-OCD_IMAGE="jayk/ocd:latest"
+OCD_IMAGE="${OPENCODE_DOCKER_IMAGE:-jayk/ocd:latest}"
 # ------------------------------------------------------------
 # Resolve project mount
 # ------------------------------------------------------------
 HOST_PROJECT_DIR="$(pwd -P)"
 PROJECT_NAME="$(basename "${HOST_PROJECT_DIR}")"
-# CTR_PROJECT_DIR="/opt/dev/dev/${PROJECT_NAME}"
+# CTR_PROJECT_DIR="/opt/ocd_dev/dev/${PROJECT_NAME}"
+
+# ------------------------------------------------------------
+# Server password
+# ------------------------------------------------------------
+OPENCODE_SERVER_PASSWORD="${OPENCODE_SERVER_PASSWORD:-}"
+case "${1:-}" in
+    web|serve)
+        if [[ -z "${OPENCODE_SERVER_PASSWORD}" ]]; then
+            WORD_LIST="/usr/share/dict/words"
+            if [[ -f "${WORD_LIST}" ]]; then
+                OPENCODE_SERVER_PASSWORD="$(shuf -n 3 "${WORD_LIST}" | tr -d "'" | tr '\n' '-' | sed 's/-$//')"
+            else
+                OPENCODE_SERVER_PASSWORD="$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 10)"
+            fi
+            echo "Securing your opencode service. Password is: ${OPENCODE_SERVER_PASSWORD}"
+            # read -r -p "Press Enter to continue..." _
+        fi
+        ;;
+esac
+set -euo pipefail
 
 # ------------------------------------------------------------
 # Native OpenCode defaults (host-side)
@@ -80,9 +99,27 @@ mkdir -p \
 # ------------------------------------------------------------
 # Container canonical paths
 # ------------------------------------------------------------
-CTR_CONFIG_DIR="/opt/dev/.config/opencode"
-CTR_DATA_DIR="/opt/dev/.local/share/opencode"
-CTR_AGENTS_DIR="/opt/dev/.agents"
+CTR_CONFIG_DIR="/opt/ocd_dev/.config/opencode"
+CTR_DATA_DIR="/opt/ocd_dev/.local/share/opencode"
+CTR_AGENTS_DIR="/opt/ocd_dev/.agents"
+
+# ------------------------------------------------------------
+# Port mappings (conditional)
+# ------------------------------------------------------------
+PORT_ARGS=()
+if [[ "${2:-}" == auth* ]]; then
+    PORT_ARGS+=("-p" "127.0.0.1:1455:1455")
+fi
+
+case "${2:-}" in
+    web|serve)
+        PORT_ARGS+=("-p" "127.0.0.1:4096:4096")
+        ;;
+esac
+
+if [ -z "${EDITOR}" ]; then
+   EDITOR="nano"
+fi
 
 # ------------------------------------------------------------
 # Run container
@@ -91,11 +128,14 @@ docker run --rm -it \
     --name "oc-${PROJECT_NAME}-$$" \
     --user 1000:1000 \
     --workdir "${HOST_PROJECT_DIR}" \
-    --env "HOME=/opt/dev" \
+    --env "HOME=/opt/ocd_dev" \
     --env "TERM=${TERM:-xterm-256color}" \
-    --env "XDG_CONFIG_HOME=/opt/dev/.config" \
-    --env "XDG_DATA_HOME=/opt/dev/.local/share" \
+    --env "XDG_CONFIG_HOME=/opt/ocd_dev/.config" \
+    --env "XDG_DATA_HOME=/opt/ocd_dev/.local/share" \
     --env "OPENCODE_CONFIG_DIR=${CTR_CONFIG_DIR}" \
+    --env "OPENCODE_SERVER_PASSWORD=${OPENCODE_SERVER_PASSWORD}" \
+    --env "EDITOR=${EDITOR}" \
+    "${PORT_ARGS[@]}" \
     -v "${HOST_PROJECT_DIR}:${HOST_PROJECT_DIR}:rw" \
     -v "${FINAL_CONFIG_DIR}:${CTR_CONFIG_DIR}:rw" \
     -v "${FINAL_DATA_DIR}:${CTR_DATA_DIR}:rw" \

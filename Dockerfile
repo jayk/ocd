@@ -30,6 +30,7 @@ RUN apt-get update \
         jq \
         make \
         openssh-client \
+        tini \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Node.js 22 (official NodeSource binary distribution)
@@ -43,7 +44,6 @@ RUN groupadd -g 1000 developer \
     && mkdir -p /opt/ocd_dev/.agents \
     && chown -R developer:developer /opt/ocd_dev
 
-COPY opencode-entrypoint.sh /usr/local/bin/opencode-entrypoint
 
 ENV HOME=/opt/ocd_dev
 ENV EDITOR=nano
@@ -55,6 +55,8 @@ WORKDIR /opt/ocd_dev
 # Install OpenCode via official installer
 RUN curl -fsSL https://opencode.ai/install | bash
 
+COPY opencode-entrypoint.sh /usr/local/bin/opencode-entrypoint
+
 # Ensure OpenCode binaries are reachable
 ENV PATH="/opt/ocd_dev/.opencode/bin:/opt/ocd_dev/bin:/opt/ocd_dev/.local/bin:${PATH}"
 
@@ -62,5 +64,8 @@ ENV PATH="/opt/ocd_dev/.opencode/bin:/opt/ocd_dev/bin:/opt/ocd_dev/.local/bin:${
 ENV XDG_DATA_HOME="/opt/ocd_dev/.opencode/share"
 ENV OPENCODE_CONFIG_DIR="/opt/ocd_dev/.opencode/config"
 
-ENTRYPOINT ["/usr/local/bin/opencode-entrypoint"]
-# CMD ["/bin/bash", "-c", "opencode"]
+# Use tini as the top-level process (PID 1)
+ENTRYPOINT ["/usr/bin/tini", "--"]
+
+# Pass your script as the default command for tini to run
+CMD ["/usr/local/bin/opencode-entrypoint"]
