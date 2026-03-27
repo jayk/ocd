@@ -117,8 +117,8 @@ case "${2:-}" in
         ;;
 esac
 
-if [ ! -z "${OPENCODE_EDITOR}" ]; then
-    OC_EDITOR="${OPENCODE_EDITOR}"
+if [ ! -z "${OPENCODE_EDITOR:-}" ]; then
+    OC_EDITOR="${OPENCODE_EDITOR:-}"
 elif [ ! -z "${EDITOR}" ]; then
    OC_EDITOR="${EDITOR}"
 else
