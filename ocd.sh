@@ -126,6 +126,18 @@ else
 fi
 
 # ------------------------------------------------------------
+# Optional extra mounts (host path -> same container path)
+# ------------------------------------------------------------
+EXTRA_MOUNT_ARGS=()
+if [[ -n "${OPENCODE_MOUNTS:-}" ]]; then
+    IFS=':' read -r -a MOUNT_PATHS <<< "${OPENCODE_MOUNTS}"
+    for MOUNT_PATH in "${MOUNT_PATHS[@]}"; do
+        [[ -z "${MOUNT_PATH}" ]] && continue
+        EXTRA_MOUNT_ARGS+=("-v" "${MOUNT_PATH}:${MOUNT_PATH}:rw")
+    done
+fi
+
+# ------------------------------------------------------------
 # Run container
 # ------------------------------------------------------------
 docker run --rm -it \
@@ -144,6 +156,7 @@ docker run --rm -it \
     -v "${FINAL_CONFIG_DIR}:${CTR_CONFIG_DIR}:rw" \
     -v "${FINAL_DATA_DIR}:${CTR_DATA_DIR}:rw" \
     -v "${FINAL_AGENTS_DIR}:${CTR_AGENTS_DIR}:rw" \
+    "${EXTRA_MOUNT_ARGS[@]}" \
     --security-opt no-new-privileges:true \
     --cap-drop ALL \
     --pids-limit 512 \

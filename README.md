@@ -75,6 +75,17 @@ export OPENCODE_AGENTS_DIR="$HOME/.agents-custom"
 ocd
 ```
 
+## Additional bind mounts
+
+If you need extra host paths available in the container, set `OPENCODE_MOUNTS` to a colon-delimited list of absolute paths:
+
+```bash
+export OPENCODE_MOUNTS="/var/run/docker.sock:/tmp/shared"
+ocd
+```
+
+Each listed path is mounted to the same absolute path inside the container (for example, `/tmp/shared` on host becomes `/tmp/shared` in container).
+
 ## Shell access inside the container
 
 To start a shell instead of OpenCode:
