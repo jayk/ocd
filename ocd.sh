@@ -117,8 +117,12 @@ case "${2:-}" in
         ;;
 esac
 
-if [ -z "${EDITOR}" ]; then
-   EDITOR="nano"
+if [ ! -z "${OPENCODE_EDITOR}" ]; then
+    OC_EDITOR="${OPENCODE_EDITOR}"
+elif [ ! -z "${EDITOR}" ]; then
+   OC_EDITOR="${EDITOR}"
+else
+   OC_EDITOR="nano"
 fi
 
 # ------------------------------------------------------------
@@ -134,7 +138,7 @@ docker run --rm -it \
     --env "XDG_DATA_HOME=/opt/ocd_dev/.local/share" \
     --env "OPENCODE_CONFIG_DIR=${CTR_CONFIG_DIR}" \
     --env "OPENCODE_SERVER_PASSWORD=${OPENCODE_SERVER_PASSWORD}" \
-    --env "EDITOR=${EDITOR}" \
+    --env "EDITOR=${OC_EDITOR}" \
     "${PORT_ARGS[@]}" \
     -v "${HOST_PROJECT_DIR}:${HOST_PROJECT_DIR}:rw" \
     -v "${FINAL_CONFIG_DIR}:${CTR_CONFIG_DIR}:rw" \
