@@ -1,16 +1,22 @@
-# ocd (OpenCode in Docker)
+# ocd (OpenCode Contained in Docker)
 
 Run OpenCode inside a locked-down Docker container while mounting your current dev folder and your OpenCode state from the host.
 
 ## Quick start
 
-1. Build the image (from this repo):
+1. Pull the image:
 
 ```bash
-docker build -t myuser/ocd:latest .
+docker pull jayk/ocd:latest
 ```
 
-2. Put `ocd.sh` on your PATH (or symlink it as `ocd`).
+(or build it from this repo)
+
+```bash
+docker build -t jayk/ocd:latest .
+```
+
+2. Put `ocd.sh` from this repo on your PATH (or symlink it as `ocd`).
 
 3. From any project folder you want to work in:
 
