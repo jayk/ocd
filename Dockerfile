@@ -29,6 +29,7 @@ RUN apt-get update \
         nano \
         jq \
         make \
+        php-cli \
         openssh-client \
         tini \
     && rm -rf /var/lib/apt/lists/*

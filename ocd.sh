@@ -12,7 +12,7 @@ PROJECT_NAME="$(basename "${HOST_PROJECT_DIR}")"
 # Server password
 # ------------------------------------------------------------
 OPENCODE_SERVER_PASSWORD="${OPENCODE_SERVER_PASSWORD:-}"
-case "${1:-}" in
+case "${2:-}" in
     web|serve)
         if [[ -z "${OPENCODE_SERVER_PASSWORD}" ]]; then
             WORD_LIST="/usr/share/dict/words"
