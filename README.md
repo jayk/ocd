@@ -105,6 +105,7 @@ ocd --bash
 - The container runs as UID/GID 1000 and sets `HOME=/opt/dev` inside the container.
 - Port `1455` is bound to `127.0.0.1` only when the first argument starts with `auth`.
 - Port `4096` is bound to `127.0.0.1` only when the first argument is `web` or `serve`.
+- For `web`/`serve`, `ocd` automatically adds `--hostname 0.0.0.0` unless you already pass `--hostname`, so container port publishing works as expected.
 - The default image name is `jayk/ocd:latest`.
 - Override the image with `OPENCODE_DOCKER_IMAGE` if you built your own.
 - `ocd` uses `OPENCODE_SERVER_PASSWORD` if set; otherwise it generates a 3-word password and pauses so you can copy it.

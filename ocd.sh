@@ -12,7 +12,7 @@ PROJECT_NAME="$(basename "${HOST_PROJECT_DIR}")"
 # Server password
 # ------------------------------------------------------------
 OPENCODE_SERVER_PASSWORD="${OPENCODE_SERVER_PASSWORD:-}"
-case "${2:-}" in
+case "${1:-}" in
     web|serve)
         if [[ -z "${OPENCODE_SERVER_PASSWORD}" ]]; then
             WORD_LIST="/usr/share/dict/words"
@@ -107,11 +107,11 @@ CTR_AGENTS_DIR="/opt/ocd_dev/.agents"
 # Port mappings (conditional)
 # ------------------------------------------------------------
 PORT_ARGS=()
-if [[ "${2:-}" == auth* ]]; then
+if [[ "${1:-}" == auth* ]]; then
     PORT_ARGS+=("-p" "127.0.0.1:1455:1455")
 fi
 
-case "${2:-}" in
+case "${1:-}" in
     web|serve)
         PORT_ARGS+=("-p" "127.0.0.1:4096:4096")
         ;;
@@ -124,6 +124,29 @@ elif [ ! -z "${EDITOR}" ]; then
 else
    OC_EDITOR="nano"
 fi
+
+# ------------------------------------------------------------
+# Final opencode args
+# ------------------------------------------------------------
+CMD_ARGS=("$@")
+
+case "${1:-}" in
+    web|serve)
+        HAS_HOSTNAME_FLAG=0
+        for ARG in "${CMD_ARGS[@]}"; do
+            case "${ARG}" in
+                --hostname|--hostname=*)
+                    HAS_HOSTNAME_FLAG=1
+                    break
+                    ;;
+            esac
+        done
+
+        if [[ "${HAS_HOSTNAME_FLAG}" -eq 0 ]]; then
+            CMD_ARGS+=("--hostname" "0.0.0.0")
+        fi
+        ;;
+esac
 
 # ------------------------------------------------------------
 # Optional extra mounts (host path -> same container path)
@@ -160,5 +183,6 @@ docker run --rm -it \
     --security-opt no-new-privileges:true \
     --cap-drop ALL \
     --pids-limit 512 \
-    ${OCD_IMAGE} \
-    "$@"
+    "${OCD_IMAGE}" \
+    /usr/local/bin/opencode-entrypoint \
+    "${CMD_ARGS[@]}"
