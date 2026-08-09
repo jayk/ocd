@@ -15,6 +15,7 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         bash \
+        build-essential \
         vim \
         ripgrep \
         diffutils \
@@ -24,6 +25,7 @@ RUN apt-get update \
         zip \
         unzip \
         python3 \
+        python3-dev \
         git \
         procps \
         nano \
@@ -31,8 +33,19 @@ RUN apt-get update \
         make \
         php-cli \
         openssh-client \
+        python3-pip \
+        python3-venv \
         tini \
     && rm -rf /var/lib/apt/lists/*
+
+RUN pip install --break-system-packages \
+        graphifyy \
+        ipython \
+        mypy \
+        pytest \
+        ruff \
+        uv \
+    && graphify install --platform opencode
 
 # Install Node.js 22 (official NodeSource binary distribution)
 
@@ -54,7 +67,8 @@ USER developer
 WORKDIR /opt/ocd_dev
 
 # Install OpenCode via official installer
-RUN curl -fsSL https://opencode.ai/install | bash
+ARG OPENCODE_CACHE_BUST
+RUN : "${OPENCODE_CACHE_BUST}" && curl -fsSL https://opencode.ai/install | bash
 
 COPY opencode-entrypoint.sh /usr/local/bin/opencode-entrypoint
 

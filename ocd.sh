@@ -9,10 +9,75 @@ PROJECT_NAME="$(basename "${HOST_PROJECT_DIR}")"
 # CTR_PROJECT_DIR="/opt/ocd_dev/dev/${PROJECT_NAME}"
 
 # ------------------------------------------------------------
+# Project configuration
+# ------------------------------------------------------------
+PROJECT_CONFIG="${HOST_PROJECT_DIR}/ocd.conf"
+CONFIG_MOUNTS=()
+
+if [[ -f "${PROJECT_CONFIG}" ]]; then
+    echo "Loading project configuration: ${PROJECT_CONFIG}"
+
+    while IFS= read -r CONFIG_LINE || [[ -n "${CONFIG_LINE}" ]]; do
+        CONFIG_LINE="${CONFIG_LINE%$'\r'}"
+
+        case "${CONFIG_LINE}" in
+            ""|\#*)
+                ;;
+            OPENCODE_MOUNTS=*)
+                CONFIG_MOUNTS+=("${CONFIG_LINE#OPENCODE_MOUNTS=}")
+                ;;
+            *)
+                echo "Unsupported ocd.conf entry: ${CONFIG_LINE}" >&2
+                echo "Only OPENCODE_MOUNTS=/path[:/another/path] is supported." >&2
+                exit 2
+                ;;
+        esac
+    done < "${PROJECT_CONFIG}"
+fi
+
+# ------------------------------------------------------------
+# Wrapper arguments
+# ------------------------------------------------------------
+CMD_ARGS=()
+CLI_MOUNTS=()
+
+while [[ "$#" -gt 0 ]]; do
+    case "$1" in
+        -d|--mountdir)
+            if [[ "$#" -lt 2 || -z "$2" ]]; then
+                echo "${1} requires a directory path." >&2
+                exit 2
+            fi
+            CLI_MOUNTS+=("$2")
+            shift 2
+            ;;
+        --mountdir=*)
+            MOUNT_DIR="${1#--mountdir=}"
+            if [[ -z "${MOUNT_DIR}" ]]; then
+                echo "--mountdir requires a directory path." >&2
+                exit 2
+            fi
+            CLI_MOUNTS+=("${MOUNT_DIR}")
+            shift
+            ;;
+        --)
+            CMD_ARGS+=("$@")
+            break
+            ;;
+        *)
+            CMD_ARGS+=("$1")
+            shift
+            ;;
+    esac
+done
+
+COMMAND_NAME="${CMD_ARGS[0]:-}"
+
+# ------------------------------------------------------------
 # Server password
 # ------------------------------------------------------------
 OPENCODE_SERVER_PASSWORD="${OPENCODE_SERVER_PASSWORD:-}"
-case "${1:-}" in
+case "${COMMAND_NAME}" in
     web|serve)
         if [[ -z "${OPENCODE_SERVER_PASSWORD}" ]]; then
             WORD_LIST="/usr/share/dict/words"
@@ -107,11 +172,11 @@ CTR_AGENTS_DIR="/opt/ocd_dev/.agents"
 # Port mappings (conditional)
 # ------------------------------------------------------------
 PORT_ARGS=()
-if [[ "${1:-}" == auth* ]]; then
+if [[ "${COMMAND_NAME}" == auth* ]]; then
     PORT_ARGS+=("-p" "127.0.0.1:1455:1455")
 fi
 
-case "${1:-}" in
+case "${COMMAND_NAME}" in
     web|serve)
         PORT_ARGS+=("-p" "127.0.0.1:4096:4096")
         ;;
@@ -126,11 +191,9 @@ else
 fi
 
 # ------------------------------------------------------------
-# Final opencode args
+# Configure web mode arguments
 # ------------------------------------------------------------
-CMD_ARGS=("$@")
-
-case "${1:-}" in
+case "${COMMAND_NAME}" in
     web|serve)
         HAS_HOSTNAME_FLAG=0
         for ARG in "${CMD_ARGS[@]}"; do
@@ -152,12 +215,55 @@ esac
 # Optional extra mounts (host path -> same container path)
 # ------------------------------------------------------------
 EXTRA_MOUNT_ARGS=()
+EXTRA_MOUNT_PATHS=()
+declare -A MOUNT_PATH_SEEN=()
+
+add_mount() {
+    local mount_path="$1"
+    local require_directory="$2"
+
+    if [[ "${mount_path}" != /* ]]; then
+        mount_path="${HOST_PROJECT_DIR}/${mount_path}"
+    fi
+    mount_path="$(realpath -m -- "${mount_path}")"
+
+    if [[ "${require_directory}" == 1 && ! -d "${mount_path}" ]]; then
+        echo "--mountdir path is not a directory: ${mount_path}" >&2
+        exit 2
+    fi
+
+    if [[ -n "${MOUNT_PATH_SEEN[${mount_path}]:-}" ]]; then
+        return
+    fi
+
+    MOUNT_PATH_SEEN["${mount_path}"]=1
+    EXTRA_MOUNT_PATHS+=("${mount_path}")
+    EXTRA_MOUNT_ARGS+=("-v" "${mount_path}:${mount_path}:rw")
+}
+
+for CONFIG_MOUNT_LIST in "${CONFIG_MOUNTS[@]}"; do
+    IFS=':' read -r -a MOUNT_PATHS <<< "${CONFIG_MOUNT_LIST}"
+    for MOUNT_PATH in "${MOUNT_PATHS[@]}"; do
+        [[ -z "${MOUNT_PATH}" ]] && continue
+        add_mount "${MOUNT_PATH}" 0
+    done
+done
+
 if [[ -n "${OPENCODE_MOUNTS:-}" ]]; then
     IFS=':' read -r -a MOUNT_PATHS <<< "${OPENCODE_MOUNTS}"
     for MOUNT_PATH in "${MOUNT_PATHS[@]}"; do
         [[ -z "${MOUNT_PATH}" ]] && continue
-        EXTRA_MOUNT_ARGS+=("-v" "${MOUNT_PATH}:${MOUNT_PATH}:rw")
+        add_mount "${MOUNT_PATH}" 0
     done
+fi
+
+for MOUNT_PATH in "${CLI_MOUNTS[@]}"; do
+    add_mount "${MOUNT_PATH}" 1
+done
+
+if [[ "${#EXTRA_MOUNT_PATHS[@]}" -gt 0 ]]; then
+    echo "Additional mounts:"
+    printf '  %s\n' "${EXTRA_MOUNT_PATHS[@]}"
 fi
 
 # ------------------------------------------------------------

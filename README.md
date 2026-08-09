@@ -117,6 +117,16 @@ You can build one from this repo:
 docker build -t yourname/ocd:latest .
 ```
 
+`build-image.sh` rebuilds OpenCode from its latest installer while retaining
+the cached base/tool layers:
+
+```bash
+./build-image.sh -p -l yourname/ocd:1.2.3
+```
+
+Use `-c` to build without Docker's layer cache, `-p` to push the supplied tag,
+and `-l` to tag and push `:latest`.
+
 Modify the `Dockerfile` if you want OpenCode to have access to additional tools.
 
 ### Included Tools
@@ -125,6 +135,9 @@ The image includes OpenCode plus common command-line tools useful during coding 
 
 - Node.js 22 and npm
 - Python 3
+- Python virtual environment support via `python3-venv`
+- Python build tooling via `build-essential` and `python3-dev`
+- Common Python developer tools: `pytest`, `ruff`, `mypy`, `ipython`, and `uv`
 - PHP CLI
 - git
 - bash
@@ -170,14 +183,32 @@ Precedence is:
 
 ### Add More Host Mounts
 
-If you need additional host paths available in the container, set `OPENCODE_MOUNTS` to a colon-delimited list of absolute paths:
+For a one-off directory mount, pass `--mountdir` (or `-d`). The option may be repeated and can appear before or after the OpenCode command:
+
+```bash
+ocd -d /tmp/shared -d /path/to/another-project
+ocd web --mountdir /tmp/shared
+```
+
+Each supplied directory is mounted read/write at the same absolute path inside the container. Relative paths are resolved from the project directory. OCD prints all additional mounts before starting the container.
+
+For project-specific mounts, create an `ocd.conf` in the directory where you run `ocd`:
+
+```text
+# Paths use the existing colon-delimited mount format.
+OPENCODE_MOUNTS=../shared-lib:/tmp/project-cache
+```
+
+OCD loads this file without executing it and prints its path when loaded. `ocd.conf` currently accepts only `OPENCODE_MOUNTS=...`; blank lines and lines beginning with `#` are ignored. Relative paths are resolved from the directory containing `ocd.conf`.
+
+You can also set `OPENCODE_MOUNTS` in your shell to a colon-delimited list of paths. Relative paths are resolved from the directory where you run `ocd`:
 
 ```bash
 export OPENCODE_MOUNTS="/tmp/shared:/var/run/docker.sock"
 ocd
 ```
 
-Each listed path is mounted read/write at the same absolute path inside the container.
+Mounts from `ocd.conf`, `OPENCODE_MOUNTS`, and `--mountdir` are combined; duplicate paths are mounted once. The environment variable remains useful for paths such as Docker sockets that are not directories.
 
 Only add mounts you actually want OpenCode to access.
 
